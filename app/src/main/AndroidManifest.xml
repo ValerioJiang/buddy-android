@@ -25,6 +25,8 @@
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <!-- calendar_events: read the phone's calendars, asked for the first time it's used -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- find_contact and compose_message: the agent looks a person up by name -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
     <!-- the location tool, asked for the first time it's used (not in the Play build) -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />

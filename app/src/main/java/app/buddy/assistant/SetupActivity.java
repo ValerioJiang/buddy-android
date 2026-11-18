@@ -489,6 +489,12 @@ public class SetupActivity extends Screen implements Account.Listener, RemoteSes
                 SetupActivity.class);
         dm.setOnClickListener(v -> defaultsSheet(this)); // a sheet, not a screen
         ag.addView(dm, topGap(4));
+        // fewer tools and a short prompt for models on the user's own server (see Prefs.leanLocal)
+        ag.addView(switchRow(this, getString(R.string.setup_lean_local), getString(R.string.setup_lean_local_info),
+                Prefs.leanLocal(this), on -> {
+                    Prefs.setLeanLocal(this, on);
+                    Helper.writePermissions(this); // buddy-run looks for lean-local-off
+                }), topGap(4));
         ag.addView(navRow(R.drawable.ms_terminal, "GitHub", GitHub.login == null || GitHub.login.isEmpty()
                 ? getString(R.string.github_row_none) : "@" + GitHub.login, GitHub.login != null && !GitHub.login.isEmpty(),
                 GitHubActivity.class), topGap(4));

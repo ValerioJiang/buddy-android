@@ -26,6 +26,7 @@ final class Helper {
             {"linux/asound-cards", "/etc/buddy/asound-cards", "644"},
             {"linux/arecord", "/usr/local/bin/rec", "755"}, // SoX's recorder, same arguments that matter (-r, -c)
             {"linux/system-prompt.md", "/root/.buddy/system-prompt.md", "600"},
+            {"linux/system-prompt-lean.md", "/root/.buddy/system-prompt-lean.md", "600"},
             {"linux/GUIDE.md", "/root/.buddy/GUIDE.md", "644"}, // Buddy's user guide, for questions about Buddy itself
             {"linux/browser-prompt.md", "/root/.buddy/browser-prompt.md", "600"},
             {"linux/AGENTS.md", "/root/.buddy/work/AGENTS.md", "600"},
@@ -112,6 +113,13 @@ final class Helper {
         try {
             if (Browser.available(c)) on.createNewFile();
             else on.delete();
+        } catch (IOException ignored) {
+        }
+        // lean mode for local models (Prefs.leanLocal): buddy-run uses the short prompt unless this file is there
+        File leanOff = new File(Linux.root(c), "root/.buddy/lean-local-off");
+        try {
+            if (Prefs.leanLocal(c)) leanOff.delete();
+            else leanOff.createNewFile();
         } catch (IOException ignored) {
         }
         StringBuilder trusted = new StringBuilder();

@@ -59,6 +59,9 @@ android {
             isMinifyEnabled = false
             vcsInfo.include = false
             if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
+            // a fork without the signing secrets: BUDDY_SIGN_DEBUG=1 (see build.yml) signs with the debug key, so the APK
+            // installs at all (an unsigned one doesn't). Not for F-Droid's check, which builds without it
+            else if (System.getenv("BUDDY_SIGN_DEBUG") == "1") signingConfig = signingConfigs.getByName("debug")
         }
     }
 

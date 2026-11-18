@@ -234,7 +234,9 @@ final class Relay {
             if (id.isEmpty()) continue;
             String name = m.optString("display_name", m.optString("name", id));
             long window = 0;
-            for (String k : new String[]{"context_window", "context_length", "max_input_tokens", "max_context_length"}) {
+            // max_model_len: vLLM's /v1/models gives the length the server runs the model with
+            for (String k : new String[]{"context_window", "context_length", "max_input_tokens", "max_context_length",
+                    "max_model_len"}) {
                 window = m.optLong(k, 0);
                 if (window > 0) break;
             }

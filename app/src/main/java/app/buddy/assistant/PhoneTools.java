@@ -41,10 +41,11 @@ import org.json.JSONObject;
 final class PhoneTools {
     static final java.util.Set<String> NAMES = new java.util.HashSet<>(java.util.Arrays.asList(
             "clipboard_read", "clipboard_write", "set_alarm", "set_timer", "share", "save_to_downloads", "device_status",
-            "take_photo", "location", "notifications", "media", "calendar_events", "add_calendar_event"));
+            "take_photo", "location", "notifications", "media", "calendar_events", "add_calendar_event", "find_contact"));
     /** Not in a notification rule's run: they read the user's things or send something out. */
     private static final java.util.Set<String> NOT_IN_RULES = new java.util.HashSet<>(java.util.Arrays.asList(
-            "clipboard_read", "share", "save_to_downloads", "take_photo", "location", "notifications", "calendar_events"));
+            "clipboard_read", "share", "save_to_downloads", "take_photo", "location", "notifications", "calendar_events",
+            "find_contact"));
 
     private final BuddyService svc;
 
@@ -107,6 +108,15 @@ final class PhoneTools {
                 "title", "start"));
         t.put(Tools.tool("location", "The phone's current location: latitude, longitude, accuracy and the address "
                 + "when known. Buddy asks the user first, every time.", Tools.props()));
+        t.put(findContactTool());
+    }
+
+    /** find_contact's description, also in the lean list (see Tools.LEAN). */
+    static JSONObject findContactTool() throws org.json.JSONException {
+        return Tools.tool("find_contact", "Look up people in the phone's contacts by name (or part of a number): "
+                + "their names and phone numbers in international form. Buddy asks the user for contacts access the "
+                + "first time. To write to someone, compose_message takes the name or number directly.",
+                Tools.props().put("name", Tools.strProp("A name or part of one, e.g. \"Karim\"")), "name");
     }
 
     JSONObject call(String name, JSONObject a, boolean ruleRun) throws Exception {
@@ -127,6 +137,7 @@ final class PhoneTools {
             case "media": return text(media(a.getString("action"), a.optInt("volume", -1)));
             case "calendar_events": return text(calendarEvents(a.optString("from"), a.optInt("days", 1)));
             case "add_calendar_event": return text(addCalendarEvent(a));
+            case "find_contact": return text(findContact(a.getString("name")));
             default: throw new IllegalArgumentException("Unknown tool " + name);
         }
     }
@@ -440,6 +451,89 @@ final class PhoneTools {
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    // ------------------------------------------------------------- contacts
+
+    /** A contact's phone number: name, the number's label (mobile, work…) and the number in E.164 when known. */
+    static final class Contact {
+        final String name, label, number;
+
+        Contact(String name, String label, String number) {
+            this.name = name;
+            this.label = label;
+            this.number = number;
+        }
+    }
+
+    /** Contacts whose name (or number) matches, one per distinct number; null when the user didn't allow access. */
+    java.util.List<Contact> contacts(String query) throws Exception {
+        if (svc.checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            Object r = PhoneToolActivity.run(svc, PhoneToolActivity.CONTACTS_PERMISSION, null, 120);
+            if (!Boolean.TRUE.equals(r)) return null;
+        }
+        java.util.List<Contact> out = new java.util.ArrayList<>();
+        String q = query.trim();
+        if (q.isEmpty()) return out;
+        String[] cols = {android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER,
+                android.provider.ContactsContract.CommonDataKinds.Phone.NORMALIZED_NUMBER,
+                android.provider.ContactsContract.CommonDataKinds.Phone.TYPE,
+                android.provider.ContactsContract.CommonDataKinds.Phone.LABEL};
+        boolean digits = q.replaceAll("[^0-9]", "").length() >= 4 && q.replaceAll("[0-9+ ()-]", "").isEmpty();
+        String sel = digits ? android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER + " LIKE ?"
+                : android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " LIKE ?";
+        String arg = digits ? "%" + q.replaceAll("[^0-9]", "") + "%" : "%" + q.replace("%", "").replace("_", "") + "%";
+        String iso = countryIso();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        try (android.database.Cursor cur = svc.getContentResolver().query(
+                android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI, cols, sel, new String[]{arg},
+                android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC")) {
+            while (cur != null && cur.moveToNext() && out.size() < 20) {
+                String name = cur.getString(0), raw = cur.getString(1), norm = cur.getString(2);
+                if (raw == null || raw.isEmpty()) continue;
+                String e164 = norm != null && !norm.isEmpty() ? norm : e164(raw, iso);
+                String key = e164 != null ? e164 : raw.replaceAll("[^0-9+]", "");
+                if (!seen.add(key)) continue; // the same number saved twice (e.g. in two accounts)
+                CharSequence label = android.provider.ContactsContract.CommonDataKinds.Phone.getTypeLabel(
+                        svc.getResources(), cur.getInt(3), cur.getString(4));
+                out.add(new Contact(name == null ? "(no name)" : name, label == null ? "" : label.toString(),
+                        e164 != null ? e164 : raw));
+            }
+        }
+        return out;
+    }
+
+    private String findContact(String query) throws Exception {
+        java.util.List<Contact> found = contacts(query);
+        if (found == null) return "The user didn't allow Buddy to read the contacts.";
+        if (found.isEmpty()) return "No contact matches \"" + query + "\".";
+        StringBuilder b = new StringBuilder(found.size() == 1 ? "1 match:\n" : found.size() + " matches:\n");
+        for (Contact c : found) b.append("- ").append(c.name).append(" (").append(c.label).append("): ").append(c.number).append('\n');
+        return b.toString().trim();
+    }
+
+    /** The phone's country (SIM, then network, then locale), lower case, for numbers saved without a country code. */
+    String countryIso() {
+        try {
+            android.telephony.TelephonyManager tm = (android.telephony.TelephonyManager) svc.getSystemService(Context.TELEPHONY_SERVICE);
+            String c = tm == null ? null : tm.getSimCountryIso();
+            if (c == null || c.isEmpty()) c = tm == null ? null : tm.getNetworkCountryIso();
+            if (c != null && !c.isEmpty()) return c.toLowerCase(Locale.ROOT);
+        } catch (Exception ignored) {
+        }
+        return Locale.getDefault().getCountry().toLowerCase(Locale.ROOT);
+    }
+
+    /** A number in E.164 ("+393331234567"), or null when it can't be told. */
+    static String e164(String raw, String iso) {
+        if (raw == null) return null;
+        String r = raw.trim();
+        if (r.startsWith("00")) r = "+" + r.substring(2);
+        String f = android.telephony.PhoneNumberUtils.formatNumberToE164(r, iso == null ? "" : iso.toUpperCase(Locale.ROOT));
+        if (f != null) return f;
+        String d = r.replaceAll("[^0-9+]", "");
+        return d.startsWith("+") && d.length() > 8 ? d : null;
     }
 
     // ------------------------------------------------------------- calendar

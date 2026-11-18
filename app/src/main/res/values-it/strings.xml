@@ -2088,7 +2088,9 @@
     <string name="signin_api_key_on">%1$s funziona con le tue chiavi API: scegli un modello nel menu dei modelli di una chat, o il suo predefinito in Chiavi API.</string>
     <string name="signin_api_key_on_plan">Le chat possono usare anche i modelli delle tue chiavi API (scegline uno nel menu dei modelli di una chat). La voce e le altre funzioni del piano usano il tuo piano.</string>
     <string name="fdroid_download_note">Questi download arrivano dai loro autori, non da F-Droid, quindi F-Droid non li ha controllati.</string>
-    <string name="api_keys_local_info">Per un tuo server (Ollama, LM Studio, llama.cpp): lascia vuota la chiave API. Su un PC, metti il suo indirizzo sul tuo Wi-Fi al posto di localhost, ad esempio http://192.168.1.20:11434/v1.</string>
+    <string name="setup_lean_local">Modalità leggera per i tuoi modelli</string>
+    <string name="setup_lean_local_info">Le chat con un modello del tuo server (Ollama, LM Studio, llama.cpp, vLLM) ricevono solo gli strumenti essenziali del telefono e istruzioni brevi. I modelli open più piccoli le seguono in modo molto più affidabile. Disattiva per dare loro tutti gli strumenti.</string>
+    <string name="api_keys_local_info">Per un tuo server (Ollama, LM Studio, llama.cpp, vLLM): lascia vuota la chiave API. Su un PC, metti il suo indirizzo sul tuo Wi-Fi o su Tailscale al posto di localhost, ad esempio http://192.168.1.20:11434/v1 o http://mio-pc.nome-tailnet.ts.net:8000/v1.</string>
     <string name="main_section_pinned">Fissate</string>
     <string name="main_section_archived">Archiviate (%1$d)</string>
     <string name="chat_pinned_marker">Fissata</string>

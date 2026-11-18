@@ -1,0 +1,9 @@
+[
+  {"id": "android", "prompt": "Open Settings and tell me which Android version this phone runs.", "expect": "Android\\s*\\d+"},
+  {"id": "calc", "prompt": "Open the Calculator app, compute 1234 × 5678 there, and tell me the result.", "expect": "7[.,\\s']?006[.,\\s']?652"},
+  {"id": "weather", "prompt": "Open Chrome and find the current temperature in Berlin. Tell me the number.", "expect": "-?\\d+\\s*°"},
+  {"id": "maps", "prompt": "Open Google Maps and tell me how long the drive from Berlin Hauptbahnhof to the Brandenburg Gate takes right now.", "expect": "\\d+\\s*(min|minut)"},
+  {"id": "youtube", "prompt": "Open YouTube, search for \"lofi hip hop\" and start playing the first video."},
+  {"id": "contact", "prompt": "What is {contact}'s phone number? Look it up in the contacts.", "expect": "\\+\\d[\\d\\s]{6,}"},
+  {"id": "compose", "prompt": "Open a WhatsApp chat with {contact} with the message \"Buddy benchmark test, please ignore\" typed in. Don't send it: just tell me when it's ready."}
+]

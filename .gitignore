@@ -19,3 +19,5 @@ local.properties
 
 # design exports (kept locally)
 design/
+benchmark/local/results-local.jsonl
+__pycache__/

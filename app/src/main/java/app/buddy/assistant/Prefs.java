@@ -151,6 +151,18 @@ final class Prefs {
         sp(c).edit().putBoolean("agents_tap_buddy", on).apply();
     }
 
+    /**
+     * Lean mode: a chat whose model runs on the user's own server (Providers.P.local) gets only the core phone tools and
+     * a short system prompt (system-prompt-lean.md), which smaller open models follow far more reliably. On by default.
+     */
+    static boolean leanLocal(Context c) {
+        return sp(c).getBoolean("lean_local", true);
+    }
+
+    static void setLeanLocal(Context c, boolean on) {
+        sp(c).edit().putBoolean("lean_local", on).apply();
+    }
+
     /** Sessions outside Buddy (Claude Code in Termux, a PC over Tailscale) work on a hidden screen (see Background). */
     static boolean outsideBackground(Context c) {
         return sp(c).getBoolean("outside_background", false);

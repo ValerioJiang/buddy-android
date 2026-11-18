@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class PhoneToolActivity extends Activity {
     static final String CLIPBOARD = "clipboard", PHOTO = "photo", LOCATION_PERMISSION = "location",
-            CALENDAR_PERMISSION = "calendar";
+            CALENDAR_PERMISSION = "calendar", CONTACTS_PERMISSION = "contacts";
     private static final int REQ = 7;
 
     private static CompletableFuture<Object> pending;
@@ -68,6 +68,8 @@ public class PhoneToolActivity extends Activity {
                     android.Manifest.permission.ACCESS_COARSE_LOCATION}, REQ);
         } else if (CALENDAR_PERMISSION.equals(job)) {
             requestPermissions(new String[]{android.Manifest.permission.READ_CALENDAR}, REQ);
+        } else if (CONTACTS_PERMISSION.equals(job)) {
+            requestPermissions(new String[]{android.Manifest.permission.READ_CONTACTS}, REQ);
         } else if (!CLIPBOARD.equals(job)) {
             finish(null);
         }

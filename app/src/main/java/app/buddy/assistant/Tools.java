@@ -52,6 +52,48 @@ final class Tools {
 
     // ---------------------------------------------------------------- schema
 
+    /**
+     * Lean mode (Prefs.leanLocal): the tools a chat on a model of the user's own server is given. Every tool in the
+     * list costs a smaller open model attention on every step, and most tasks need only these: see the screen, act on
+     * it, send a message the short way, ask the user and get their OK.
+     */
+    static final java.util.Set<String> LEAN = new java.util.LinkedHashSet<>(java.util.Arrays.asList(
+            "read_screen", "tap", "type_text", "scroll", "press", "open_app", "open_url", "compose_message", "find_contact",
+            "wait_for", "find", "do_steps", "confirm", "ask", "notify", "set_alarm", "set_timer", "device_status",
+            "calendar_events", "add_calendar_event"));
+
+    /** Is this chat in lean mode: its model is on the user's own server, and the user left lean mode on? */
+    static boolean lean(String chat) {
+        if (chat == null || !Prefs.leanLocal(BuddyApp.context())) return false;
+        Sessions.Session s = ChatHub.get(BuddyApp.context()).sessions.find(chat);
+        if (s == null) return false;
+        Providers.P p = Providers.of(Models.effective(s));
+        return p != null && p.local();
+    }
+
+    /** The lean tools out of the full list, in LEAN's order (the screen first, the user last). */
+    private static JSONArray leanOnly(JSONArray all) throws JSONException {
+        java.util.Map<String, JSONObject> byName = new java.util.HashMap<>();
+        for (int i = 0; i < all.length(); i++) byName.put(all.getJSONObject(i).getString("name"), all.getJSONObject(i));
+        JSONArray out = new JSONArray();
+        for (String n : LEAN) if (byName.containsKey(n)) out.put(byName.get(n));
+        return out;
+    }
+
+    /** compose_message's description, also in the lean list (see LEAN). */
+    static JSONObject composeMessageTool() throws JSONException {
+        return tool("compose_message",
+                "Open a chat with a person in WhatsApp (or the SMS app) with your message already typed in, in one "
+                        + "step: Buddy looks the name up in the contacts, so there's no app to open, contact to search "
+                        + "or text box to tap. Nothing is sent: then call confirm with the message, read_screen and tap "
+                        + "the send button. If several contacts match, it lists them: call it again with the right "
+                        + "number.",
+                props().put("to", strProp("The person's name as saved in the contacts (\"Karim\") or a phone number"))
+                        .put("text", strProp("The message to type"))
+                        .put("app", enumProp("whatsapp", "sms")),
+                "to", "text");
+    }
+
     JSONArray list() throws JSONException {
         JSONArray t = new JSONArray();
         t.put(tool("read_screen",
@@ -119,6 +161,7 @@ final class Tools {
                         + "you only need to read, the browser_* tools work without taking over the screen. Returns "
                         + "\"Opened\"; call read_screen to see it.",
                 props().put("url", strProp("The URL or deep link, e.g. https://example.com or tel:+491234")), "url"));
+        t.put(composeMessageTool());
         t.put(tool("screenshot",
                 "Take a screenshot (JPEG). Use only when read_screen is not enough (images, games, canvas UIs). "
                         + "The reply says how to convert image coordinates to screen pixels.",
@@ -329,7 +372,7 @@ final class Tools {
                 "package"));
         PhoneTools.list(t); // the clipboard, alarms, sharing, Downloads, status, camera, location
         if (Browser.available(svc)) BrowserTools.list(t); // the background browser (Settings)
-        return t;
+        return lean(McpServer.CALLER_CHAT.get()) ? leanOnly(t) : t;
     }
 
     static JSONObject tool(String name, String desc, JSONObject properties, String... required) throws JSONException {
@@ -379,8 +422,8 @@ final class Tools {
     /** A tool call, plus anything the user added while the agent works (see ChatHub.takeNotes). */
     /** The actions "View steps" keeps (see StepLog). */
     private static final java.util.Set<String> STEPPED = new java.util.HashSet<>(java.util.Arrays.asList(
-            "tap", "long_press", "type_text", "scroll", "swipe", "press", "open_app", "open_url", "do_steps", "collect",
-            "find", "take_photo", "set_alarm", "set_timer", "share", "save_to_downloads", "add_calendar_event", "media",
+            "tap", "long_press", "type_text", "scroll", "swipe", "press", "open_app", "open_url", "compose_message",
+            "do_steps", "collect", "find", "take_photo", "set_alarm", "set_timer", "share", "save_to_downloads", "add_calendar_event", "media",
             "reply_notification", "schedule_message", "clipboard_write", "phone_shell", "add_notification_rule"));
     /** Of those, the ones that don't change the screen: listed without a picture. */
     private static final java.util.Set<String> UNSEEN = new java.util.HashSet<>(java.util.Arrays.asList(
@@ -499,6 +542,7 @@ final class Tools {
                 }
                 return text(openUrl(a.getString("url")));
             }
+            case "compose_message": return text(composeMessage(a));
             case "screenshot": return screenshot();
             case "wait_for": return text(waitFor(a));
             case "do_steps": return text(doSteps(a.getJSONArray("steps")));
@@ -826,18 +870,19 @@ final class Tools {
 
     private static final java.util.Set<String> SCREEN = new java.util.HashSet<>(java.util.Arrays.asList(
             "read_screen", "tap", "long_press", "type_text", "scroll", "swipe", "press", "open_app", "open_url",
-            "screenshot", "point_out", "wait_for", "do_steps", "collect", "find"));
+            "compose_message", "screenshot", "point_out", "wait_for", "do_steps", "collect", "find"));
 
     /** Not for a helper (see Helpers): what reaches the user, the phone's own settings or a later time. */
     private static final java.util.Set<String> HELPER_NO = new java.util.HashSet<>(java.util.Arrays.asList(
             "delegate", "subagents", "phone_shell", "install_apk", "update_buddy", "wait_for_install", "schedule_message",
-            "add_notification_rule",
+            "add_notification_rule", "compose_message",
             "cancel_scheduled", "notify", "share", "reply_notification", "point_out", "add_calendar_event", "set_alarm",
             "set_timer", "take_photo", "clipboard_write", "save_to_downloads"));
 
     /** Tools that act on the screen: the point_out marks go first, as the screen is about to change. */
     private static final java.util.Set<String> ACTIONS = new java.util.HashSet<>(java.util.Arrays.asList(
-            "tap", "long_press", "type_text", "scroll", "swipe", "press", "open_app", "open_url", "do_steps", "collect", "find"));
+            "tap", "long_press", "type_text", "scroll", "swipe", "press", "open_app", "open_url", "compose_message", "do_steps",
+            "collect", "find"));
 
     /** point_out's marks or ask's highlight: elements from the last read_screen, or points on the screen. */
     private List<Marks.Mark> marks(JSONArray a) throws JSONException {
@@ -2455,6 +2500,60 @@ final class Tools {
         StringBuilder sb = new StringBuilder();
         for (String l : lines) sb.append(l).append('\n');
         return sb.toString();
+    }
+
+    /** compose_message: the person's chat opened with the text filled in, nothing sent (the agent confirms, then taps Send). */
+    private String composeMessage(JSONObject a) throws Exception {
+        // a rule's run answers someone else's message: it has reply_notification, and reads no contacts
+        if (ruleRun()) return "Not available in a notification rule's run: use reply_notification.";
+        String app = a.optString("app", "whatsapp").toLowerCase(Locale.ROOT);
+        if (!"whatsapp".equals(app) && !"sms".equals(app)) return "app must be whatsapp or sms.";
+        String to = a.getString("to").trim(), body = a.getString("text");
+        if (to.isEmpty() || body.trim().isEmpty()) return "Give both to and text.";
+        String who, number;
+        boolean isNumber = to.replaceAll("[0-9+ ()./-]", "").isEmpty() && to.replaceAll("[^0-9]", "").length() >= 5;
+        if (isNumber) {
+            number = PhoneTools.e164(to, phone.countryIso());
+            if (number == null) number = to.replaceAll("[^0-9+]", "");
+            who = number;
+        } else {
+            List<PhoneTools.Contact> found = phone.contacts(to);
+            if (found == null) return "The user didn't allow Buddy to read the contacts. Ask them for the number, or "
+                    + "open the app and find the chat yourself.";
+            if (found.isEmpty()) return "No contact matches \"" + to + "\". Ask the user for the number, or check the "
+                    + "spelling with find_contact.";
+            // the same person under one name with one number is the only case that goes on by itself
+            if (found.size() > 1) {
+                StringBuilder b = new StringBuilder("Several contacts match \"" + to + "\"; nothing was opened. Call "
+                        + "compose_message again with the number of the right one (call ask if you can't tell which):\n");
+                for (PhoneTools.Contact c : found) b.append("- ").append(c.name).append(" (").append(c.label).append("): ")
+                        .append(c.number).append('\n');
+                return b.toString().trim();
+            }
+            number = found.get(0).number;
+            who = found.get(0).name + " (" + number + ")";
+        }
+        String digits = number.replaceAll("[^0-9]", "");
+        if (digits.length() < 5) return "That doesn't look like a phone number: " + to;
+        String enc = java.net.URLEncoder.encode(body, "UTF-8").replace("+", "%20");
+        String url;
+        if ("whatsapp".equals(app)) {
+            android.content.pm.PackageManager pm = svc.getPackageManager();
+            if (pm.getLaunchIntentForPackage("com.whatsapp") == null && pm.getLaunchIntentForPackage("com.whatsapp.w4b") == null)
+                return "WhatsApp isn't installed on this phone. Use app sms, or tell the user.";
+            // wa.me needs the number with its country code and no "+"; an unknown one would open the wrong person
+            if (!number.startsWith("+")) return "The number " + number + " has no country code, so WhatsApp can't "
+                    + "be opened on it. Ask the user for the full number (e.g. +39…).";
+            url = "https://wa.me/" + digits + "?text=" + enc;
+        } else {
+            url = "smsto:" + (number.startsWith("+") ? "+" + digits : digits) + "?body=" + enc;
+        }
+        String opened = openUrl(url);
+        if (!opened.startsWith("Opened")) return opened;
+        return "Opened the " + ("whatsapp".equals(app) ? "WhatsApp" : "SMS") + " chat with " + who + " with the message "
+                + "typed in. NOTHING HAS BEEN SENT. Next: call confirm with the recipient and the message, then "
+                + "read_screen and tap the send button. If the screen shows a different person or no text, say so "
+                + "instead of sending.";
     }
 
     private String openUrl(String url) throws InterruptedException {

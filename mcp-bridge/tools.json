@@ -200,6 +200,34 @@
     }
   },
   {
+    "name": "compose_message",
+    "description": "Open a chat with a person in WhatsApp (or the SMS app) with your message already typed in, in one step: Buddy looks the name up in the contacts, so there's no app to open, contact to search or text box to tap. Nothing is sent: then call confirm with the message, read_screen and tap the send button. If several contacts match, it lists them: call it again with the right number.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "to": {
+          "type": "string",
+          "description": "The person's name as saved in the contacts (\"Karim\") or a phone number"
+        },
+        "text": {
+          "type": "string",
+          "description": "The message to type"
+        },
+        "app": {
+          "type": "string",
+          "enum": [
+            "whatsapp",
+            "sms"
+          ]
+        }
+      },
+      "required": [
+        "to",
+        "text"
+      ]
+    }
+  },
+  {
     "name": "screenshot",
     "description": "Take a screenshot (JPEG). Use only when read_screen is not enough (images, games, canvas UIs). The reply says how to convert image coordinates to screen pixels.",
     "inputSchema": {
@@ -1039,6 +1067,22 @@
     "inputSchema": {
       "type": "object",
       "properties": {}
+    }
+  },
+  {
+    "name": "find_contact",
+    "description": "Look up people in the phone's contacts by name (or part of a number): their names and phone numbers in international form. Buddy asks the user for contacts access the first time. To write to someone, compose_message takes the name or number directly.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A name or part of one, e.g. \"Karim\""
+        }
+      },
+      "required": [
+        "name"
+      ]
     }
   },
   {

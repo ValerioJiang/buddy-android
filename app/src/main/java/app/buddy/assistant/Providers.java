@@ -84,17 +84,19 @@ final class Providers {
             {"Ollama", "", "http://localhost:11434/v1", ""},
             {"LM Studio", "", "http://localhost:1234/v1", ""},
             {"llama.cpp", "", "http://localhost:8080/v1", ""},
+            {"vLLM", "", "http://localhost:8000/v1", ""},
     };
 
     /**
-     * An address on this phone or on the user's own network (private IPv4 ranges, Tailscale's 100.64/10, *.local):
-     * plain http is accepted there, and no API key is needed.
+     * An address on this phone or on the user's own network (private IPv4 ranges, Tailscale's 100.64/10 and its
+     * MagicDNS names *.ts.net, *.local): plain http is accepted there, and no API key is needed. Tailscale encrypts
+     * the traffic itself, so a model server on a computer of the user's tailnet counts as their own.
      */
     static boolean isLocal(String url) {
         String h = url == null || url.isEmpty() ? null : android.net.Uri.parse(url).getHost();
         if (h == null) return false;
         h = h.toLowerCase(java.util.Locale.ROOT);
-        if (h.equals("localhost") || h.endsWith(".local")) return true;
+        if (h.equals("localhost") || h.endsWith(".local") || h.endsWith(".ts.net")) return true;
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)\\.(\\d+)\\.\\d+\\.\\d+").matcher(h);
         if (!m.matches()) return false;
         int a = Integer.parseInt(m.group(1)), b = Integer.parseInt(m.group(2));
